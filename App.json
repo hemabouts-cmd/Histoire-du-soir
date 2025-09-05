@@ -1,0 +1,166 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, useColorScheme, ScrollView, Switch } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export default function App() {
+  const [selectedStory, setSelectedStory] = useState(null);
+  const [favorites, setFavorites] = useState([]);
+  const [fontSize, setFontSize] = useState(18);
+  const [darkMode, setDarkMode] = useState(false);
+  const [history, setHistory] = useState([]);
+  const systemScheme = useColorScheme();
+
+  // Charger préférences
+  useEffect(() => {
+    (async () => {
+      const savedFontSize = await AsyncStorage.getItem('fontSize');
+      const savedDark = await AsyncStorage.getItem('darkMode');
+      const savedFavs = await AsyncStorage.getItem('favorites');
+      const savedHistory = await AsyncStorage.getItem('history');
+      if (savedFontSize) setFontSize(Number(savedFontSize));
+      if (savedDark) setDarkMode(savedDark === 'true');
+      if (savedFavs) setFavorites(JSON.parse(savedFavs));
+      if (savedHistory) setHistory(JSON.parse(savedHistory));
+    })();
+  }, []);
+
+  // Sauvegarder préférences
+  useEffect(() => {
+    AsyncStorage.setItem('fontSize', fontSize.toString());
+    AsyncStorage.setItem('darkMode', darkMode.toString());
+    AsyncStorage.setItem('favorites', JSON.stringify(favorites));
+    AsyncStorage.setItem('history', JSON.stringify(history));
+  }, [fontSize, darkMode, favorites, history]);
+
+  // Exemple d’histoires (tu pourras en ajouter plus tard)
+  const STORIES = [
+    {
+      id: '1',
+      title: 'Le Petit Renard Courageux',
+      pages: [
+        { text: "Un jeune renard décida de quitter sa tanière pour explorer la forêt.", image: 'https://picsum.photos/400/300?random=1' },
+        { text: "Il rencontra un ruisseau qu’il devait traverser malgré sa peur.", image: 'https://picsum.photos/400/300?random=2' },
+        { text: "Grâce à son courage, il aida un oisillon à retrouver son nid.", image: 'https://picsum.photos/400/300?random=3' }
+      ]
+    },
+    {
+      id: '2',
+      title: 'La Montgolfière Magique',
+      pages: [
+        { text: "Lina monta dans une montgolfière colorée au lever du soleil.", image: 'https://picsum.photos/400/300?random=4' },
+        { text: "Elle s’éleva doucement et vit la ville devenir minuscule.", image: 'https://picsum.photos/400/300?random=5' },
+        { text: "Le ciel était rempli d’étoiles malgré le jour, une magie unique.", image: 'https://picsum.photos/400/300?random=6' }
+      ]
+    }
+  ];
+
+  // Ajouter aux favoris
+  const toggleFavorite = (id) => {
+    if (favorites.includes(id)) {
+      setFavorites(favorites.filter(f => f !== id));
+    } else {
+      setFavorites([...favorites, id]);
+    }
+  };
+
+  // Sélection d’histoire
+  const openStory = (story) => {
+    setSelectedStory(story);
+    if (!history.includes(story.id)) {
+      setHistory([...history, story.id]);
+    }
+  };
+
+  // UI principale
+  if (selectedStory) {
+    return (
+      <View style={[styles.container, darkMode && styles.darkContainer]}>
+        <FlatList
+          data={selectedStory.pages}
+          keyExtractor={(item, index) => index.toString()}
+          horizontal
+          pagingEnabled
+          renderItem={({ item }) => (
+            <View style={styles.page}>
+              <Image source={{ uri: item.image }} style={styles.image} />
+              <ScrollView>
+                <Text style={[styles.pageText, { fontSize }, darkMode && styles.darkText]}>{item.text}</Text>
+              </ScrollView>
+            </View>
+          )}
+        />
+        <TouchableOpacity style={styles.backButton} onPress={() => setSelectedStory(null)}>
+          <Text style={styles.backText}>← Retour</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, darkMode && styles.darkContainer]}>
+      <ScrollView>
+        <Text style={[styles.title, darkMode && styles.darkText]}>
+          {darkMode ? "🌙 Bonne nuit" : "🌅 Bonjour"}
+        </Text>
+
+        <Text style={[styles.subtitle, darkMode && styles.darkText]}>
+          Choisis ton histoire :
+        </Text>
+
+        {STORIES.map(story => (
+          <TouchableOpacity key={story.id} style={styles.storyCard} onPress={() => openStory(story)}>
+            <Text style={[styles.storyTitle, darkMode && styles.darkText]}>{story.title}</Text>
+            <Text>{favorites.includes(story.id) ? "⭐ Favori" : ""}</Text>
+            <TouchableOpacity onPress={() => toggleFavorite(story.id)}>
+              <Text style={styles.favButton}>{favorites.includes(story.id) ? "Retirer" : "Favori +"}</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Bandeau bas */}
+      <View style={styles.navbar}>
+        <Text style={styles.navItem}>📚 Bibliothèque</Text>
+        <Text style={styles.navItem}>⭐ Favoris</Text>
+        <Text style={styles.navItem}>👤 Profil</Text>
+        <Text style={styles.navItem}>⚙️ Réglages</Text>
+      </View>
+
+      {/* Profil simple (taille texte + dark mode) */}
+      <View style={styles.profileBox}>
+        <Text style={styles.profileTitle}>Réglages rapides</Text>
+        <View style={styles.profileRow}>
+          <Text>Taille texte : </Text>
+          <TouchableOpacity onPress={() => setFontSize(fontSize - 2)}><Text>-</Text></TouchableOpacity>
+          <Text>{fontSize}</Text>
+          <TouchableOpacity onPress={() => setFontSize(fontSize + 2)}><Text>+</Text></TouchableOpacity>
+        </View>
+        <View style={styles.profileRow}>
+          <Text>Mode nuit :</Text>
+          <Switch value={darkMode} onValueChange={setDarkMode} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20, backgroundColor: '#fff' },
+  darkContainer: { backgroundColor: '#0d0d1a' },
+  title: { fontSize: 26, fontWeight: 'bold', textAlign: 'center', marginTop: 20 },
+  subtitle: { fontSize: 18, textAlign: 'center', marginVertical: 10 },
+  storyCard: { backgroundColor: '#f4f4f8', padding: 15, marginVertical: 8, borderRadius: 10 },
+  storyTitle: { fontSize: 20, fontWeight: '600' },
+  favButton: { color: 'blue', marginTop: 5 },
+  navbar: { flexDirection: 'row', justifyContent: 'space-around', padding: 10, borderTopWidth: 1, borderColor: '#ccc', backgroundColor: '#fafafa' },
+  navItem: { fontSize: 16 },
+  page: { width: 320, padding: 20, alignItems: 'center' },
+  image: { width: 280, height: 200, borderRadius: 10, marginBottom: 10 },
+  pageText: { textAlign: 'center', lineHeight: 24 },
+  darkText: { color: '#eee' },
+  backButton: { position: 'absolute', top: 40, left: 20, backgroundColor: '#333', padding: 8, borderRadius: 5 },
+  backText: { color: '#fff' },
+  profileBox: { padding: 15, backgroundColor: '#eee', borderRadius: 10, marginTop: 10 },
+  profileTitle: { fontWeight: 'bold', marginBottom: 8 },
+  profileRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 5 }
+});
